@@ -1,2 +1,5 @@
-Antonio/Celeb_A/
-Antonio/SVHN
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+
+*/Celeb_A/
+*/SVHN
