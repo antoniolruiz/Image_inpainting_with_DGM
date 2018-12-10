@@ -29,7 +29,7 @@ def conv_layer(input_x, in_channel, out_channel, stride, kernel_shape, rand_seed
 
         tf.summary.histogram('conv_layer/{}/kernel'.format(index), weight)
         tf.summary.histogram('conv_layer/{}/bias'.format(index), bias)
-    return weight, bias, cell_out
+    return cell_out
 
 
 
@@ -129,7 +129,7 @@ class DCGAN(object):
             conv_layer_0 = tf.nn.relu(conv_layer_0)
 
             # convolution 1
-            _, _, conv_layer_1 = conv_transpose_layer(input_x=conv_layer_0,
+            conv_layer_1 = conv_transpose_layer(input_x=conv_layer_0,
                                                 output_shape=[self.batch_size, 8, 8, self.gf_dim * 4],
                                                 rand_seed=self.seed,
                                                 index=1)
@@ -139,7 +139,7 @@ class DCGAN(object):
             conv_layer_1 = tf.nn.relu(conv_layer_1)
 
             # convolution 2
-            _, _, conv_layer_2 = conv_transpose_layer(input_x=conv_layer_1,
+            conv_layer_2 = conv_transpose_layer(input_x=conv_layer_1,
                                                 output_shape=[self.batch_size, 16, 16, self.gf_dim * 2],
                                                 rand_seed=self.seed,
                                                 index=2)
@@ -149,7 +149,7 @@ class DCGAN(object):
             conv_layer_2 = tf.nn.relu(conv_layer_2)
 
             # convolution 3
-            _, _, conv_layer_3 = conv_transpose_layer(input_x=conv_layer_2,
+            conv_layer_3 = conv_transpose_layer(input_x=conv_layer_2,
                                                 output_shape=[self.batch_size, 32, 32, self.gf_dim * 1],
                                                 rand_seed=self.seed,
                                                 index=3)
@@ -159,7 +159,7 @@ class DCGAN(object):
             conv_layer_3 = tf.nn.relu(conv_layer_3)
 
             # convolution 4
-            _, _, conv_layer_4 = conv_transpose_layer(input_x=conv_layer_3,
+            conv_layer_4 = conv_transpose_layer(input_x=conv_layer_3,
                                                 output_shape=[self.batch_size, 64, 64, 3],
                                                 rand_seed=self.seed,
                                                 index=4)
