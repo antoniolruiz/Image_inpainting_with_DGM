@@ -302,7 +302,7 @@ class DCGAN():
             # Discriminator variables
             self.d_vars = [var for var in t_vars if 'd_' in var.name]
 
-    def train(self, X_train, learning_rate=0.0001, iters):
+    def train(self, X_train, learning_rate=0.0001, iters=1500):
         print("Building my DCGAN")
 
         # Initialize z
