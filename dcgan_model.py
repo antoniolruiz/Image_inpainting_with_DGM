@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 import tensorflow as tf
+import time
+from PIL import Image
+import numpy as np
 
 
 def conv_layer(input_x, out_channel, stride=2, kernel_shape=5, rand_seed=2813, index=0, prefix='d'):
@@ -31,7 +34,6 @@ def conv_layer(input_x, out_channel, stride=2, kernel_shape=5, rand_seed=2813, i
         tf.summary.histogram('{}/conv_layer/{}/kernel'.format(prefix, index), weight)
         tf.summary.histogram('{}/conv_layer/{}/bias'.format(prefix, index), bias)
     return cell_out
-
 
 
 def conv_transpose_layer(input_x, output_shape, stride=2, kernel_shape=5, rand_seed=2813, index=0, prefix='d'):
@@ -130,23 +132,30 @@ def norm_layer(input_x, is_training):
     return cell_out
 
 
+def train_step(loss, vars, prefix, learning_rate=1e-3):
+    with tf.name_scope('train_step'):
+        step = tf.train.AdamOptimizer(learning_rate,
+                name='{}_adam'.format(prefix)).minimize(loss, var_list=vars)
+    return step
 
-class DCGAN(object):
-    def __init__(self, session, batch_size=64, gf_dim=64, df_dim=64,
-            is_training=True):
+
+class DCGAN():
+    def __init__(self, batch_size=64, z_dim, gf_dim=64, df_dim=64,
+    model_name='DCGAN', is_training=True):
     """
-    :param session: tensorflow session
     :param batch_size: Size of each batch
     :param gf_dim: dimension of the filter generator for first convolution
     :param df_dim: dimension of the filter discriminator in first colvolution
     :param is_training: a boolean representing training / testing
     """
-    self.sess = session
     self.batch_size = batch_size
     self.gf_dim = gf_dim
     self.df_dim = df_dim
     self.is_training = is_training
+    self.model_name = model_name
     self.seed = 92913
+
+    self.model()
 
     def generator(self, z):
         """
@@ -154,7 +163,7 @@ class DCGAN(object):
         with tf.variable_scope("Generator"):
             # Proyect and reshape
             # Project - Fully Connected layer
-            self.new_z, self.h0_w, self.h0_b = fc_layer(z, out_size=self.gf_dim*8*4*4,
+            self.z, self.h0_w, self.h0_b = fc_layer(z, out_size=self.gf_dim*8*4*4,
                                                         rand_seed=self.seed,
                                                         prefix='g')
             # Reshape
@@ -251,47 +260,96 @@ class DCGAN(object):
 
     def model(self):
         with tf.name_scope('inputs'):
-            xs = tf.placeholder(shape=[None, 64, 64, 3], dtype=tf.float32)
+            img = tf.placeholder(shape=[None, 64, 64, 3], dtype=tf.float32)
             self.is_training = tf.placeholder(tf.bool, name='is_training')
-            z = tf.placeholder(tf.float32, [None, self.z_dim], name='z')
+            self.z = tf.placeholder(tf.float32, [None, self.z_dim], name='z')
 
         # Generator
-        G = self.generator(z)
+        self.fake_img = self.generator(z)
 
         # Discriminator
         # with real images
-        D, D_logits = self.discriminator(xs)
+        self.D, self.D_logits = self.discriminator(img)
         # with fake images
-        D_, D_logits_ = self.discriminator(G, reuse=True)
+        self.D_, self.D_logits_ = self.discriminator(fake_img, reuse=True)
 
         with tf.name_scope("loss"):
             # real image loss for discriminator
             d_real_loss = tf.reduce_mean(
-                    tf.nn.sigmoid_cross_entropy_with_logits(logits=D_logits,
+                    tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_logits,
                                                             labels=tf.ones_like(self.D)),
                     name='discriminator_loss_real_images')
             # fake image loss for discriminator
             d_fake_loss = tf.reduce_mean(
-                    tf.nn.sigmoid_cross_entropy_with_logits(logits=D_logits_,
+                    tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_logits_,
                                                             labels=tf.zeros_like(self.D_)),
                     name='discriminator_loss_fake_images')
             # Discriminator loss:
-            d_loss = tf.add(d_loss_real, d_fake_loss, name='discriminator_loss')
-            tf.summary.scalar('Discriminator_loss', d_loss)
+            self.d_loss = tf.add(d_loss_real, d_fake_loss, name='discriminator_loss')
+            tf.summary.scalar('Discriminator_loss', self.d_loss)
 
             # Generator loss:
-            g_loss = tf.reduce_mean(
-                    tf.nn.sigmoid_cross_entropy_with_logits(logits=D_logits_,
+            self.g_loss = tf.reduce_mean(
+                    tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_logits_,
                                                             labels=tf.ones_like(self.D_)),
                     name='generator_loss')
-            tf.summary.scalar('Generator_loss', g_loss)
+            tf.summary.scalar('Generator_loss', self.g_loss)
 
             # Get all variables and split them for each CNN:
             t_vars = tf.trainable_variables()
             # Generator variables
-            g_vars = [var for var in t_vars if 'g_' in var.name]
+            self.g_vars = [var for var in t_vars if 'g_' in var.name]
             # Discriminator variables
-            d_vars = [var for var in t_vars if 'd_' in var.name]
+            self.d_vars = [var for var in t_vars if 'd_' in var.name]
 
+    def train(self, X_train, learning_rate=0.0001, iters):
+        print("Building my DCGAN")
 
+        # Initialize z
+        z = np.random.uniform(-1, 1, size=(self.batch_size , self.z_dim))
+
+        # TODO: Image generator
+        img_gen = ImageGenerator(X_train)
+        # Generate augmentation
+        new_train_size = img_gen.x_aug.shape[0]
+        print('X_train size {}'.format(X_train.shape[0]))
+        print('new size {}'.format(new_train_size))
+
+        # calculate loss
+        g_step = train_step(self.g_loss, self.g_vars, 'g', learning_rate)
+        d_step = train_step(self.d_loss, self.d_vars, 'd', learning_rate)
+
+        # Open session
+        self.session = tf.Session()
+        with self.session as sess:
+
+            merge = tf.summary.merge_all()
+            saver = tf.train.Saver()
+            cur_model_name = 'my_dcgan_{}'.format(int(time.time()))
+            self.sess.run(tf.global_variables_initializer())
+
+            batch_gen = img_gen.next_batch_gen(batch_size=self.batch_size, shuffle=True)
+
+            for itr in iters:
+                iter_total += 1
+                img_batch = next(batch_gen)
+                # Update Generator
+                self.sess.run([g_step], feed_dict={img: img_batch,
+                                                   self.z: z,
+                                                   is_training: True})
+                # Update Discriminator
+                self.sess.run([d_step], feed_dict={img: img_batch,
+                                                   self.z: z,
+                                                   is_training: True})
+                if itr % 10 == 0:
+                    [D_loss, G_loss, fake_img] = self.sess.run([self.D_loss, self.G_loss, self.fake_img], feed_dict={img: batch, self.z: z})
+                    print("Step: {}, D_loss: {}, G_loss: {}"format(itr, D_loss, G_loss))
+                    # Store generated fake image
+                    ## TODO: check dimensions
+                    Image.fromarray(np.uint8((fake_img[0, :, :, :] + 1.0) * 127.5)).save('result/"+str(i)+".jpg")
+
+                # Store checkpoint
+                if itr % 200 == 0:
+                    saver.save(self.sess,
+                            "checkpoints/{}.ckpt".format(self.model_name, itr)
 
