@@ -232,7 +232,7 @@ class DCGAN():
                                                 index=4, prefix='g')
             print('conv_4_{}'.format(conv_layer_4.shape))
             # tanh
-            return tf.nn.tanh(conv_layer_4)
+            return tf.nn.tanh(conv_layer_4, name='tanh_fake')
 
     def discriminator(self, image, reuse=False):
         """
@@ -280,15 +280,15 @@ class DCGAN():
         fc_layer_4, _, _ = fc_layer(flatten, out_size=1, rand_seed=self.seed,
                 prefix='d', index=1)
 
-        return tf.nn.sigmoid(fc_layer_4), fc_layer_4
+        return tf.nn.sigmoid(fc_layer_4, name='sigmoid_real'), fc_layer_4
 
     def model(self):
         with tf.name_scope('inputs'):
-            self.img = tf.placeholder(shape=[self.batch_size, 64, 64, 3], dtype=tf.float32)
+            self.img = tf.placeholder(shape=[self.batch_size, 64, 64, 3], dtype=tf.float32, name='real')
             self.is_training = tf.placeholder(tf.bool, name='is_training')
 
         with tf.variable_scope(tf.get_variable_scope()) as scope:
-            self.z = tf.placeholder(shape=[self.batch_size, self.z_dim], dtype=tf.float32)
+            self.z = tf.placeholder(shape=[self.batch_size, self.z_dim], dtype=tf.float32, name='z')
             # Generator
             self.fake_img = self.generator(self.z)
 
