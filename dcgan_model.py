@@ -143,7 +143,7 @@ def train_step(loss, vars, prefix, learning_rate=1e-3):
 
 
 class DCGAN():
-    def __init__(self, batch_size=64, z_dim=8192, gf_dim=64, df_dim=64,
+    def __init__(self, batch_size=64, z_dim=100, gf_dim=64, df_dim=64,
     model_name='DCGAN'):
         """
         :param batch_size: Size of each batch
