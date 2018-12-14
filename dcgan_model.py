@@ -4,6 +4,8 @@ import time
 from PIL import Image
 import numpy as np
 
+from image_gen import ImageCollector
+
 
 def conv_layer(input_x, out_channel, stride=2, kernel_shape=5, rand_seed=2813, index=0, prefix='d'):
     """
@@ -18,7 +20,7 @@ def conv_layer(input_x, out_channel, stride=2, kernel_shape=5, rand_seed=2813, i
 
     with tf.variable_scope('{}_conv_layer_{}'.format(prefix, index)):
         with tf.name_scope('conv_kernel'):
-            w_shape = [kernel_shape, kernel_shape, input_.get_shape()[-1], out_channel]
+            w_shape = [kernel_shape, kernel_shape, input_x.get_shape()[-1], out_channel]
             weight = tf.get_variable(name='{}_conv_kernel_{}'.format(prefix, index),
                                      shape=w_shape,
                                      initializer=tf.glorot_uniform_initializer(seed=rand_seed))
@@ -66,7 +68,7 @@ def conv_transpose_layer(input_x, output_shape, stride=2, kernel_shape=5, rand_s
         tf.summary.histogram('{}/conv_transpose_layer/{}/kernel'.format(prefix, index), weight)
         tf.summary.histogram('{}/conv_transpose_layer/{}/bias'.format(prefix, index), bias)
 
-    return weight, bias, cell_out
+    return cell_out
 
 
 def fc_layer(input_x, out_size, rand_seed, activation_function=None, index=0, prefix='d'):
@@ -80,7 +82,7 @@ def fc_layer(input_x, out_size, rand_seed, activation_function=None, index=0, pr
     """
     shape = input_x.get_shape().as_list()
 
-    with tf.variable_scope('{}_fc_layer_{}'.format(prefix, index)):
+    with tf.variable_scope('fc_layer_{}'.format(prefix, index)):
         with tf.name_scope('fc_kernel'):
             w_shape = [shape[1], out_size]
             weight = tf.get_variable(name='{}_fc_kernel_{}'.format(prefix, index),
@@ -133,6 +135,7 @@ def norm_layer(input_x, is_training):
 
 
 def train_step(loss, vars, prefix, learning_rate=1e-3):
+    #loss = tf.constant(loss)
     with tf.name_scope('train_step'):
         step = tf.train.AdamOptimizer(learning_rate,
                 name='{}_adam'.format(prefix)).minimize(loss, var_list=vars)
@@ -140,74 +143,94 @@ def train_step(loss, vars, prefix, learning_rate=1e-3):
 
 
 class DCGAN():
-    def __init__(self, batch_size=64, z_dim, gf_dim=64, df_dim=64,
-    model_name='DCGAN', is_training=True):
-    """
-    :param batch_size: Size of each batch
-    :param gf_dim: dimension of the filter generator for first convolution
-    :param df_dim: dimension of the filter discriminator in first colvolution
-    :param is_training: a boolean representing training / testing
-    """
-    self.batch_size = batch_size
-    self.gf_dim = gf_dim
-    self.df_dim = df_dim
-    self.is_training = is_training
-    self.model_name = model_name
-    self.seed = 92913
+    def __init__(self, batch_size=64, z_dim=8192, gf_dim=64, df_dim=64,
+    model_name='DCGAN'):
+        """
+        :param batch_size: Size of each batch
+        :param gf_dim: dimension of the filter generator for first convolution
+        :param df_dim: dimension of the filter discriminator in first colvolution
+        :param is_training: a boolean representing training / testing
+        """
 
-    self.model()
+        self.batch_size = batch_size
+        self.gf_dim = gf_dim
+        self.df_dim = df_dim
+        self.z_dim = z_dim
+        self.model_name = model_name
+        self.seed = 92913
 
-    def generator(self, z):
+        self.model()
+
+    def generator(self, input_z):
         """
         """
         with tf.variable_scope("Generator"):
             # Proyect and reshape
             # Project - Fully Connected layer
-            self.z, self.h0_w, self.h0_b = fc_layer(z, out_size=self.gf_dim*8*4*4,
+            self.z_, self.h0_w, self.h0_b = fc_layer(input_z, out_size=self.gf_dim*8*4*4,
                                                         rand_seed=self.seed,
+                                                        index=0,
                                                         prefix='g')
+
             # Reshape
-            conv_layer_0 = tf.reshape(self.new_z, [-1, 4, 4, self.gf_dim * 8])
+            conv_layer_0 = tf.reshape(self.z_, [-1, 4, 4, self.gf_dim * 8])
+            print('conv_0_{}'.format(conv_layer_0.shape))
             # batch normalization
             conv_layer_0 = norm_layer(conv_layer_0, self.is_training)
+            print('conv_0_norm_{}'.format(conv_layer_0.shape))
             # relu
             conv_layer_0 = tf.nn.relu(conv_layer_0)
+            print('conv_0_relu_{}'.format(conv_layer_0.shape))
 
             # convolution 1
             conv_layer_1 = conv_transpose_layer(input_x=conv_layer_0,
-                                                output_shape=[self.batch_size, 8, 8, self.gf_dim * 4],
+                                                output_shape=[self.batch_size,
+                                                    8, 8, self.gf_dim * 4],
                                                 rand_seed=self.seed,
                                                 index=1, prefix='g')
+            print('conv_1_{}'.format(conv_layer_1.shape))
             # batch normalization
             conv_layer_1 = norm_layer(conv_layer_1, self.is_training)
+            print('conv_1_norm_{}'.format(conv_layer_1.shape))
             # relu
             conv_layer_1 = tf.nn.relu(conv_layer_1)
+            print('conv_1_relu_{}'.format(conv_layer_1.shape))
 
             # convolution 2
             conv_layer_2 = conv_transpose_layer(input_x=conv_layer_1,
-                                                output_shape=[self.batch_size, 16, 16, self.gf_dim * 2],
+                                                output_shape=[self.batch_size,
+                                                    16, 16, self.gf_dim * 2],
                                                 rand_seed=self.seed,
                                                 index=2, prefix='g')
+            print('conv_2_{}'.format(conv_layer_2.shape))
             # batch normalization
             conv_layer_2 = norm_layer(conv_layer_2, self.is_training)
+            print('conv_2_norm_{}'.format(conv_layer_2.shape))
             # relu
             conv_layer_2 = tf.nn.relu(conv_layer_2)
+            print('conv_2_relu_{}'.format(conv_layer_2.shape))
 
             # convolution 3
             conv_layer_3 = conv_transpose_layer(input_x=conv_layer_2,
-                                                output_shape=[self.batch_size, 32, 32, self.gf_dim * 1],
+                                                output_shape=[self.batch_size,
+                                                    32, 32, self.gf_dim * 1],
                                                 rand_seed=self.seed,
                                                 index=3, prefix='g')
+            print('conv_3_{}'.format(conv_layer_3.shape))
             # batch normalization
             conv_layer_3 = norm_layer(conv_layer_3, self.is_training)
+            print('conv_3_norm_{}'.format(conv_layer_3.shape))
             # relu
             conv_layer_3 = tf.nn.relu(conv_layer_3)
+            print('conv_3_relu_{}'.format(conv_layer_3.shape))
 
             # convolution 4
             conv_layer_4 = conv_transpose_layer(input_x=conv_layer_3,
-                                                output_shape=[self.batch_size, 64, 64, 3],
+                                                output_shape=[self.batch_size,
+                                                    64, 64, 3],
                                                 rand_seed=self.seed,
                                                 index=4, prefix='g')
+            print('conv_4_{}'.format(conv_layer_4.shape))
             # tanh
             return tf.nn.tanh(conv_layer_4)
 
@@ -226,7 +249,7 @@ class DCGAN():
         conv_layer_0 = tf.nn.leaky_relu(conv_layer_0, alpha=0.2)
 
         # convolution 1
-        conv_layer_1 = conv_layer(conv_layer_1,
+        conv_layer_1 = conv_layer(conv_layer_0,
                                   out_channel=self.df_dim * 2,
                                   rand_seed=self.seed,
                                   index=1, prefix='d')
@@ -234,7 +257,7 @@ class DCGAN():
         conv_layer_1 = tf.nn.leaky_relu(conv_layer_1, alpha=0.2)
 
         # convolution 2
-        conv_layer_2 = conv_layer(conv_layer_2,
+        conv_layer_2 = conv_layer(conv_layer_1,
                                   out_channel=self.df_dim * 4,
                                   rand_seed=self.seed,
                                   index=2, prefix='d')
@@ -242,7 +265,7 @@ class DCGAN():
         conv_layer_2 = tf.nn.leaky_relu(conv_layer_2, alpha=0.2)
 
         # convolution 3
-        conv_layer_3 = conv_layer(conv_layer_3,
+        conv_layer_3 = conv_layer(conv_layer_2,
                                   out_channel=self.df_dim * 8,
                                   rand_seed=self.seed,
                                   index=3, prefix='d')
@@ -254,26 +277,31 @@ class DCGAN():
         img_vector_length = norm_shape[1].value * norm_shape[2].value * norm_shape[3].value
         flatten = tf.reshape(conv_layer_3, shape=[-1, img_vector_length])
         # linear
-        fc_layer_4, _, _ = fc_layer(flatten, out_size=1, self.seed, prefix='d')
+        fc_layer_4, _, _ = fc_layer(flatten, out_size=1, rand_seed=self.seed,
+                prefix='d', index=1)
 
         return tf.nn.sigmoid(fc_layer_4), fc_layer_4
 
     def model(self):
         with tf.name_scope('inputs'):
-            img = tf.placeholder(shape=[None, 64, 64, 3], dtype=tf.float32)
+            self.img = tf.placeholder(shape=[self.batch_size, 64, 64, 3], dtype=tf.float32)
             self.is_training = tf.placeholder(tf.bool, name='is_training')
-            self.z = tf.placeholder(tf.float32, [None, self.z_dim], name='z')
 
-        # Generator
-        self.fake_img = self.generator(z)
+        with tf.variable_scope(tf.get_variable_scope()) as scope:
+            self.z = tf.placeholder(shape=[self.batch_size, self.z_dim], dtype=tf.float32)
+            # Generator
+            self.fake_img = self.generator(self.z)
 
-        # Discriminator
-        # with real images
-        self.D, self.D_logits = self.discriminator(img)
-        # with fake images
-        self.D_, self.D_logits_ = self.discriminator(fake_img, reuse=True)
+            print(self.img.shape)
+            print(self.fake_img.shape)
 
-        with tf.name_scope("loss"):
+            # Discriminator
+            # with real images
+            self.D, self.D_logits = self.discriminator(self.img)
+            # with fake images
+            self.D_, self.D_logits_ = self.discriminator(self.fake_img, reuse=True)
+
+            #with tf.name_scope("loss"):
             # real image loss for discriminator
             d_real_loss = tf.reduce_mean(
                     tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_logits,
@@ -285,7 +313,7 @@ class DCGAN():
                                                             labels=tf.zeros_like(self.D_)),
                     name='discriminator_loss_fake_images')
             # Discriminator loss:
-            self.d_loss = tf.add(d_loss_real, d_fake_loss, name='discriminator_loss')
+            self.d_loss = tf.add(d_real_loss, d_fake_loss, name='discriminator_loss')
             tf.summary.scalar('Discriminator_loss', self.d_loss)
 
             # Generator loss:
@@ -305,51 +333,55 @@ class DCGAN():
     def train(self, X_train, learning_rate=0.0001, iters=1500):
         print("Building my DCGAN")
 
-        # Initialize z
-        z = np.random.uniform(-1, 1, size=(self.batch_size , self.z_dim))
-
-        # TODO: Image generator
-        img_gen = ImageGenerator(X_train)
+        img_gen = ImageCollector(X_train)
         # Generate augmentation
         new_train_size = img_gen.x_aug.shape[0]
         print('X_train size {}'.format(X_train.shape[0]))
         print('new size {}'.format(new_train_size))
 
         # calculate loss
+        #print(self.g_loss)
+        #print(self.g_vars)
         g_step = train_step(self.g_loss, self.g_vars, 'g', learning_rate)
         d_step = train_step(self.d_loss, self.d_vars, 'd', learning_rate)
 
         # Open session
         self.session = tf.Session()
         with self.session as sess:
+            # Initialize z
+            input_z = np.random.uniform(-1, 1, size=(self.batch_size , self.z_dim))
+            input_z = input_z.astype(np.float32)
 
             merge = tf.summary.merge_all()
             saver = tf.train.Saver()
             cur_model_name = 'my_dcgan_{}'.format(int(time.time()))
-            self.sess.run(tf.global_variables_initializer())
+            sess.run(tf.global_variables_initializer())
 
             batch_gen = img_gen.next_batch_gen(batch_size=self.batch_size, shuffle=True)
 
-            for itr in iters:
-                iter_total += 1
+            for itr in range(iters):
                 img_batch = next(batch_gen)
                 # Update Generator
-                self.sess.run([g_step], feed_dict={img: img_batch,
-                                                   self.z: z,
-                                                   is_training: True})
+                _, g_loss = sess.run([g_step, self.g_loss], feed_dict={self.img: img_batch,
+                                                   self.z: input_z,
+                                                   self.is_training: True})
                 # Update Discriminator
-                self.sess.run([d_step], feed_dict={img: img_batch,
-                                                   self.z: z,
-                                                   is_training: True})
+                _, d_loss = sess.run([d_step, self.d_loss],
+                        feed_dict={self.img: img_batch,
+                                                   self.z: input_z,
+                                                   self.is_training: True})
                 if itr % 10 == 0:
-                    [D_loss, G_loss, fake_img] = self.sess.run([self.D_loss, self.G_loss, self.fake_img], feed_dict={img: batch, self.z: z})
-                    print("Step: {}, D_loss: {}, G_loss: {}"format(itr, D_loss, G_loss))
+                    [d_loss, g_loss, fake_img] = sess.run([self.d_loss,
+                        self.g_loss, self.fake_img], feed_dict={self.img: img_batch,
+                                                                self.z: input_z,
+                                                                self.is_training: True})
+                    print("Step: {}, D_loss: {}, G_loss: {}".format(itr, d_loss, g_loss))
                     # Store generated fake image
-                    ## TODO: check dimensions
-                    Image.fromarray(np.uint8((fake_img[0, :, :, :] + 1.0) * 127.5)).save('result/"+str(i)+".jpg")
+                    Image.fromarray(np.uint8((fake_img[0, :, :, :] + 1.0) *
+                        127.5)).save('result/'+str(itr)+".jpg")
 
                 # Store checkpoint
                 if itr % 200 == 0:
-                    saver.save(self.sess,
-                            "checkpoints/{}.ckpt".format(self.model_name, itr)
+                    saver.save(sess,
+                            "checkpoints/{}.ckpt".format(self.model_name, itr))
 
