@@ -60,7 +60,7 @@ def add_noise(x, portion, amplitude):
                 mean = 0
                 std = 0.01
                 noise = amplitude * np.random.normal(mean, std, x[i,:,:,j].shape)
-                print(noise)
+                #print(noise)
                 x[i,:,:,j] += noise
     return x 
 
