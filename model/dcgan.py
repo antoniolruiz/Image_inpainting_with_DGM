@@ -4,7 +4,7 @@ import time
 from PIL import Image
 import numpy as np
 
-from image_gen import ImageCollector
+from model.image_utils import *
 
 
 def conv_layer(input_x, out_channel, stride=2, kernel_shape=5, rand_seed=2813, index=0, prefix='d'):
@@ -158,6 +158,7 @@ class DCGAN():
         self.z_dim = z_dim
         self.model_name = model_name
         self.seed = 92913
+        self.data_source = data_source
 
         self.model()
 
@@ -378,10 +379,10 @@ class DCGAN():
                     print("Step: {}, D_loss: {}, G_loss: {}".format(itr, d_loss, g_loss))
                     # Store generated fake image
                     Image.fromarray(np.uint8((fake_img[0, :, :, :] + 1.0) *
-                        127.5)).save("{}/results/{}.jpg".format(self.data_source, itr)
+                        127.5)).save("../{}/results/{}.jpg".format(self.data_source, itr))
 
                 # Store checkpoint
                 if itr % 200 == 0:
                     saver.save(sess,
-                            "{}/checkpoints/{}.ckpt".format(self.data_source, self.model_name, itr))
+                            "../{}/checkpoints/{}.ckpt".format(self.data_source, self.model_name, itr))
 
