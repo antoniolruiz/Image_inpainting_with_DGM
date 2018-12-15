@@ -144,7 +144,7 @@ def train_step(loss, vars, prefix, learning_rate=1e-3):
 
 class DCGAN():
     def __init__(self, batch_size=64, z_dim=100, gf_dim=64, df_dim=64,
-    model_name='DCGAN', data_source='Cars'):
+    model_name='DCGAN', data_source='Cars', z_dist='uniform'):
         """
         :param batch_size: Size of each batch
         :param gf_dim: dimension of the filter generator for first convolution
@@ -159,6 +159,7 @@ class DCGAN():
         self.model_name = model_name
         self.seed = 92913
         self.data_source = data_source
+        self.z_dist = z_dist
 
         self.model()
 
@@ -350,7 +351,10 @@ class DCGAN():
         self.session = tf.Session()
         with self.session as sess:
             # Initialize z
-            input_z = np.random.uniform(-1, 1, size=(self.batch_size , self.z_dim))
+            if self.z_dist == 'uniform':
+                input_z = np.random.uniform(-1, 1, size=(self.batch_size , self.z_dim))
+            else:
+                input_z = np.random.randn(self.batch_size, self.z_dim) 
             input_z = input_z.astype(np.float32)
 
             merge = tf.summary.merge_all()
@@ -359,6 +363,7 @@ class DCGAN():
             sess.run(tf.global_variables_initializer())
 
             batch_gen = img_gen.next_batch_gen(batch_size=self.batch_size, shuffle=True)
+            best_g = 100
 
             for itr in range(iters):
                 img_batch = next(batch_gen)
@@ -381,8 +386,9 @@ class DCGAN():
                     Image.fromarray(np.uint8((fake_img[0, :, :, :] + 1.0) *
                         127.5)).save("../{}/results/{}.jpg".format(self.data_source, itr))
 
-                # Store checkpoint
-                if itr % 200 == 0:
+                if (itr < 100) & (g_loss <= best_g):
+                    # Store checkpoint
+                    best_g = g_loss
                     saver.save(sess,
                             "../{}/checkpoints/{}.ckpt".format(self.data_source, self.model_name, itr))
 
