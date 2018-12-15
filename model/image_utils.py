@@ -110,8 +110,7 @@ def load_images_from_bucket(bucket='inpainting-final-project', path='images/Cars
             s = blob.download_as_string()
             img = Image.open(io.BytesIO(s))
             
-            #resize the image to (64,64,3) and normalize it to between -1 and 1
-            resized_img = cv2.resize(np.asarray(img),(64,64))/127.5-1.0
+            resized_img = resize(img)
             
             if resized_img.shape == (64,64,3):
                 images.append(resized_img)
@@ -119,6 +118,11 @@ def load_images_from_bucket(bucket='inpainting-final-project', path='images/Cars
         pass
     return np.asarray(images)
 
+            
+def resize(img):
+    #resize the image to (64,64,3) and normalize it to between -1 and 1
+    resized_img = cv2.resize(np.asarray(img),(64,64))/127.5-1.0
+    return resized_img
 
 def add_noise(x, portion, amplitude):
     """
@@ -207,4 +211,3 @@ class ImageCollector():
                 i += 1
                 axes1[j][k].set_axis_off()
                 axes1[j][k].imshow(images[i:i+1][0])
-
