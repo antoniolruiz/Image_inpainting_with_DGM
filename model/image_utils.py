@@ -101,7 +101,7 @@ def load_images_from_bucket(bucket='inpainting-final-project', path='images/Cars
     # Open bucket
     client = storage.Client()
     bucket = client.get_bucket('inpainting-final-project')
-    blobs = bucket.list_blobs(prefix='images/Cars/cars_train/')
+    blobs = bucket.list_blobs(prefix=path)
     images = [] 
     # Append images
     try:
