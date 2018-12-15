@@ -144,7 +144,7 @@ def train_step(loss, vars, prefix, learning_rate=1e-3):
 
 class DCGAN():
     def __init__(self, batch_size=64, z_dim=100, gf_dim=64, df_dim=64,
-    model_name='DCGAN'):
+    model_name='DCGAN', data_source='Cars'):
         """
         :param batch_size: Size of each batch
         :param gf_dim: dimension of the filter generator for first convolution
@@ -370,7 +370,7 @@ class DCGAN():
                         feed_dict={self.img: img_batch,
                                                    self.z: input_z,
                                                    self.is_training: True})
-                if itr % 10 == 0:
+                if itr % 100 == 0:
                     [d_loss, g_loss, fake_img] = sess.run([self.d_loss,
                         self.g_loss, self.fake_img], feed_dict={self.img: img_batch,
                                                                 self.z: input_z,
@@ -378,10 +378,10 @@ class DCGAN():
                     print("Step: {}, D_loss: {}, G_loss: {}".format(itr, d_loss, g_loss))
                     # Store generated fake image
                     Image.fromarray(np.uint8((fake_img[0, :, :, :] + 1.0) *
-                        127.5)).save('result/'+str(itr)+".jpg")
+                        127.5)).save("{}/results/{}.jpg".format(self.data_source, itr)
 
                 # Store checkpoint
                 if itr % 200 == 0:
                     saver.save(sess,
-                            "checkpoints/{}.ckpt".format(self.model_name, itr))
+                            "{}/checkpoints/{}.ckpt".format(self.data_source, self.model_name, itr))
 
