@@ -64,7 +64,7 @@ def center_square(pics):
     
     return np.array(out),mask
 
-def center_square(pics,place):
+def halve_pic(pics,place):
     
     out =[]
     images = np.copy(pics)
