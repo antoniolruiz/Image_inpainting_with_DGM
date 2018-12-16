@@ -2,6 +2,8 @@
 import cv2
 from google.cloud import storage
 import io
+import imageio
+import glob
 from PIL import Image
 from scipy.io import loadmat # Library to get mat files from SVHN Dataset
 import matplotlib.image as img # Get images and make them matrices from Celeb A
@@ -93,6 +95,20 @@ def halve_pic(pics,place):
         out.append(image) # Get array of new images
     
     return np.array(out),mask
+
+
+def load_images_from_local(path, sample=False, n_sample=1000):
+    imgs = []
+    image_names = glob.glob('{path}/*'.format(path=path))
+    if sample:
+        image_names = image_names[:n_sample]
+    for img in image_names:
+        im = imageio.imread(img)
+        resized_img = cv2.resize(np.asarray(im),(64,64))/127.5-1.0
+        if resized_img.shape == (64,64,3):
+            imgs.append(resized_img)
+    return np.asarray(imgs)
+
 
 def load_images_from_bucket(bucket='inpainting-final-project', path='images/Cars/cars_train/'):
     """

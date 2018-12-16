@@ -234,63 +234,65 @@ class DCGAN():
                                                 index=4, prefix='g')
             print('conv_4_{}'.format(conv_layer_4.shape))
             # tanh
-            return tf.nn.tanh(conv_layer_4, name='tanh_fake')
+            tanh4 = tf.nn.tanh(conv_layer_4, name='tanh_fake')
+            return tanh4
 
     def discriminator(self, image, reuse=False):
         """
         """
-        if reuse:
-            tf.get_variable_scope().reuse_variables()
+        with tf.variable_scope("Discriminator"):
+            if reuse:
+                tf.get_variable_scope().reuse_variables()
 
-        # convolution 0
-        conv_layer_0 = conv_layer(image,
-                                  out_channel=self.df_dim,
-                                  rand_seed=self.seed,
-                                  index=0, prefix='d')
-        # leaky relu
-        conv_layer_0 = tf.nn.leaky_relu(conv_layer_0, alpha=0.2)
+            # convolution 0
+            conv_layer_0 = conv_layer(image,
+                                      out_channel=self.df_dim,
+                                      rand_seed=self.seed,
+                                      index=0, prefix='d')
+            # leaky relu
+            conv_layer_0 = tf.nn.leaky_relu(conv_layer_0, alpha=0.2)
 
-        # convolution 1
-        conv_layer_1 = conv_layer(conv_layer_0,
-                                  out_channel=self.df_dim * 2,
-                                  rand_seed=self.seed,
-                                  index=1, prefix='d')
-        # leaky relu
-        conv_layer_1 = tf.nn.leaky_relu(conv_layer_1, alpha=0.2)
+            # convolution 1
+            conv_layer_1 = conv_layer(conv_layer_0,
+                                      out_channel=self.df_dim * 2,
+                                      rand_seed=self.seed,
+                                      index=1, prefix='d')
+            # leaky relu
+            conv_layer_1 = tf.nn.leaky_relu(conv_layer_1, alpha=0.2)
 
-        # convolution 2
-        conv_layer_2 = conv_layer(conv_layer_1,
-                                  out_channel=self.df_dim * 4,
-                                  rand_seed=self.seed,
-                                  index=2, prefix='d')
-        # leaky relu
-        conv_layer_2 = tf.nn.leaky_relu(conv_layer_2, alpha=0.2)
+            # convolution 2
+            conv_layer_2 = conv_layer(conv_layer_1,
+                                      out_channel=self.df_dim * 4,
+                                      rand_seed=self.seed,
+                                      index=2, prefix='d')
+            # leaky relu
+            conv_layer_2 = tf.nn.leaky_relu(conv_layer_2, alpha=0.2)
 
-        # convolution 3
-        conv_layer_3 = conv_layer(conv_layer_2,
-                                  out_channel=self.df_dim * 8,
-                                  rand_seed=self.seed,
-                                  index=3, prefix='d')
-        # leaky relu
-        conv_layer_3 = tf.nn.leaky_relu(conv_layer_3, alpha=0.2)
+            # convolution 3
+            conv_layer_3 = conv_layer(conv_layer_2,
+                                      out_channel=self.df_dim * 8,
+                                      rand_seed=self.seed,
+                                      index=3, prefix='d')
+            # leaky relu
+            conv_layer_3 = tf.nn.leaky_relu(conv_layer_3, alpha=0.2)
 
-        # reshape
-        norm_shape = conv_layer_3.get_shape()
-        img_vector_length = norm_shape[1].value * norm_shape[2].value * norm_shape[3].value
-        flatten = tf.reshape(conv_layer_3, shape=[-1, img_vector_length])
-        # linear
-        fc_layer_4, _, _ = fc_layer(flatten, out_size=1, rand_seed=self.seed,
-                prefix='d', index=1)
-
-        return tf.nn.sigmoid(fc_layer_4, name='sigmoid_real'), fc_layer_4
+            # reshape
+            norm_shape = conv_layer_3.get_shape()
+            img_vector_length = norm_shape[1].value * norm_shape[2].value * norm_shape[3].value
+            flatten = tf.reshape(conv_layer_3, shape=[-1, img_vector_length])
+            # linear
+            fc_layer_4, _, _ = fc_layer(flatten, out_size=1, rand_seed=self.seed,
+                    prefix='d', index=1)
+            sigmoid = tf.nn.sigmoid(fc_layer_4, name='sigmoid_real')
+            return sigmoid, fc_layer_4
 
     def model(self):
         with tf.name_scope('inputs'):
             self.img = tf.placeholder(shape=[self.batch_size, 64, 64, 3], dtype=tf.float32, name='real')
             self.is_training = tf.placeholder(tf.bool, name='is_training')
+            self.z = tf.placeholder(shape=[self.batch_size, self.z_dim], dtype=tf.float32, name='z')
 
         with tf.variable_scope(tf.get_variable_scope()) as scope:
-            self.z = tf.placeholder(shape=[self.batch_size, self.z_dim], dtype=tf.float32, name='z')
             # Generator
             self.fake_img = self.generator(self.z)
 
