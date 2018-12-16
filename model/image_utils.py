@@ -13,8 +13,72 @@ from os.path import isfile, join # Just to get structure of files
 import numpy as np
 from tempfile import TemporaryFile # To save matrix of images
 import random
+from os import listdir
+from os.path import isfile, join
 
 
+def get_svhn_xy(path):
+    
+    svhn_train = loadmat(path) # SVHN train set
+    svhn_trainx = svhn_train['X'] # train images
+    svhn_trainy = svhn_train['y'] # train labels. We don't need them though.
+    
+    svhnx = []
+    svhny = []
+    
+    for img in svhn_trainx.T:
+        svhnx.append(img.T)
+    for img in svhn_trainy.T:
+        svhny.append(img.T)
+        
+    return svhnx,svhny
+
+def resize_normal_svhn(svhn):
+    
+    imgs = []
+    for img in svhn:
+        resized_img = resize(img)
+        if resized_img.shape == (64,64,3):
+            imgs.append(resized_img)
+        else:
+            print('Image reshaped incorrectly')
+            pass
+
+    return np.asarray(imgs)
+
+
+def taking_labels(svhnx,svhny,label):
+    labels1 = []
+    imgs1 = []
+    for i in range(0,len(svhny[0])):
+        if svhny[0][i] == label:
+            labels1.append(svhny[0][i])
+            imgs1.append(svhnx[i])
+    return imgs1
+
+def pretty_viz(mypath,file_name,path_2_save):
+    files = [f for f in listdir(mypath) if isfile(join(mypath, f))]    
+    files.sort()
+    files.sort(key = len)
+    im = []
+    for jpg in files:
+        im.append(Image.open(mypath+'/'+jpg))
+
+    x = []
+    for i in im:
+        x.append(np.asarray(i))
+
+    for i in range(len(x)):
+        image = x[i].squeeze()
+        plt.subplot(3,5,i+1)
+        plt.imshow(image, interpolation='nearest')
+        plt.axis('off')
+        plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=None, hspace=None)
+    plt.savefig(mypath+'/'+ file_name, bbox_inches='tight')
+    plt.show()
+    
+    return None
+    
 def show_1(image): # func to plot image
     plt.imshow(image)
     plt.show()
