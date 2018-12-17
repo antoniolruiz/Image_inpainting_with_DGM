@@ -11,17 +11,22 @@ INSERT THE TENSOR BOARD IMAGE HERE
 Implementation of DCGAN and inpainting model. 
 
 ## Dependencies
-Tensorflow >= 1.0
-scipy + PIL/pillow (image io)
-pyamg (for Poisson blending)
-Tested to work for Python 3
+ - Tensorflow >= 1.0
+ - scipy + PIL/pillow (image io)
+ - pyamg (for Poisson blending)
+ - Tested to work for Python 3
 
 ## Files
-SVHN train DataSet w labels.ipynb
-Run_train_Cars.ipynb
-Run_train_CelebA.ipynb
 
-function of each file in the project
+- `SVHN train DataSet w labels.ipynb`
+- `Run_train_Cars.ipynb`
+- `Run_train_CelebA.ipynb`
+
+# Functions of each file in the project:
+
+- `model/dcgan.py`: Includes the class of the DCGAN network with all the layer functions.
+- `model/image_utils.py`: Includes functions to preprocess and manipulate the images.
+- `model/inpainting.py`: Class for inpainting model which includes restoring the tensorflow network graph.
 
 ## Instructions on Running 
 Download the entire zip folder of our repo and run the jupyter notebooks. 
