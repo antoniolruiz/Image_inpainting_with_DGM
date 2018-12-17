@@ -1,4 +1,4 @@
-### Semantic Image Inpainting with a Novel Twist
+# Semantic Image Inpainting with a Novel Twist
 Final project for the course of Deep Learning at Columbia University based on Semantic Image Inpainting With Deep Generative Models by Raymond A. Yeh*, Chen Chen*, Teck Yian Lim, Alexander G. Schwing, Mark Hasegawa-Johnson, Minh N. Do. https://arxiv.org/pdf/1607.07539.pdf
 
 Semantic Image Inpainting with a Novel Twist
@@ -36,10 +36,10 @@ Download the entire zip folder of our repo and run the jupyter notebooks.
 Google Cloud Bucket:
 https://console.cloud.google.com/storage/browser/inpainting-final-project 
 
-`/inpainting-final-project/images/CelebA/img_align_celeba`
-`/inpainting-final-project/images/Cars/cars_test/cars_test`
-`/inpainting-final-project/images/Cars/cars_train`
-`/inpainting-final-project/images/SVHN`
+- `/inpainting-final-project/images/CelebA/img_align_celeba`
+- `/inpainting-final-project/images/Cars/cars_test/cars_test`
+- `/inpainting-final-project/images/Cars/cars_train`
+- `/inpainting-final-project/images/SVHN`
 
 Guide to access Cloud Bucket using Python
 
