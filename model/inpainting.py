@@ -8,9 +8,7 @@ import os
 from glob import glob
 import pyamg
 
-#possion blending 
 
-# pre-process the mask array so that uint64 types from opencv.imread can be adapted
 def prepare_mask(mask):
     if type(mask[0][0]) is np.ndarray:
         result = np.ndarray((mask.shape[0], mask.shape[1]), dtype=np.uint8)
@@ -130,8 +128,6 @@ class ModelInpaint():
 
         self.batch_size = batch_size
         self.z_dim = z_dim
-#         self.graph, self.graph_def = ModelInpaint.loadpb(modelfilename,
-#                                                          model_name)
 
         self.graph = ModelInpaint.restore_graph()
 
@@ -151,6 +147,13 @@ class ModelInpaint():
         self.iters = iters
         self.momentum = momentum
 
+        # Get all variables and split them for each CNN:
+        t_vars = tf.trainable_variables()
+        # Generator variables
+        self.g_vars = [var for var in t_vars if 'g_' in var.name]
+        # Discriminator variables
+        self.d_vars = [var for var in t_vars if 'd_' in var.name]
+
         self.sess = tf.Session(graph=self.graph)
 
         self.init_z()
@@ -161,6 +164,7 @@ class ModelInpaint():
 
     def sample(self, z=None):
         """GAN sampler. Useful for checking if the GAN was loaded correctly"""
+        self.build_inpaint_graph()
         if z is None:
             z = self.z
         #new edits 
@@ -233,21 +237,18 @@ class ModelInpaint():
             self.masks = tf.placeholder(tf.float32,
                                         [None] + self.image_shape,
                                         name='mask')
-            self.images = tf.placeholder(tf.float32,
+            self.img = tf.placeholder(tf.float32,
                                          [None] + self.image_shape,
                                          name='images')
-            self.context_loss = tf.reduce_sum(
+            self.context_loss = tf.reduce_mean(
                     tf.contrib.layers.flatten(
                         tf.abs(tf.multiply(self.masks, self.go) -
-                               tf.multiply(self.masks, self.images))), 1
+                               tf.multiply(self.masks, self.img))), 1
                 )
 
-            self.perceptual_loss = self.gl
-            #self.perceptual_loss = tf.cast(self.gl, tf.float32)
-#             print(self.perceptual_loss)
-#             print(self.l)
+            self.g_loss = self.gl
             
-            self.inpaint_loss = self.context_loss + self.l*self.perceptual_loss
+            self.inpaint_loss = self.context_loss + self.l*self.g_loss
             self.inpaint_grad = tf.gradients(self.inpaint_loss, self.gi)
 
     def inpaint(self, image, mask, blend=True):
@@ -265,26 +266,31 @@ class ModelInpaint():
         self.build_inpaint_graph()
         self.preprocess(image, mask)
 
-        imout = self.backprop_to_input()
+        imout = self.backprop_to_input(image)
 
         return self.postprocess(imout, blend), imout
 
-    def backprop_to_input(self, verbose=True):
+    def backprop_to_input(self, image, verbose=True):
         """Main worker function. To be called after all initilization is done.
         Performs backpropagation to input using (accelerated) gradient descent
         to obtain latent space representation of target image
         Returns:
             generator output image
         """
+       
         v = 0
         for i in range(self.iters):
+            self.sess.run(tf.global_variables_initializer())
             out_vars = [self.inpaint_loss, self.inpaint_grad, self.go]
             in_dict = {self.masks: self.masks_data,
                        self.gi: self.z,
-                       self.images: self.images_data,
+                       self.img: image, #self.images_data,
                        self.training: False}
+            g_loss, context_loss = self.sess.run([self.g_loss, self.context_loss], feed_dict=in_dict)
+            #context_loss, loss = self.sess.run([self.context_loss, self.inpaint_loss], feed_dict=in_dict)
 
             loss, grad, imout = self.sess.run(out_vars, feed_dict=in_dict)
+            #context, perceptual = self.sess.run([self.context_loss, self.perceptual_loss], feed_dict=in_dict)
 
             v_prev = np.copy(v)
             v = self.momentum*v - self.lr*grad[0]
@@ -293,34 +299,11 @@ class ModelInpaint():
             self.z = np.clip(self.z, -1, 1)
 
             if verbose:
-                print('Iteration {}: {}'.format(i, np.mean(loss)))
+                #print('it {}: g_loss {} context {}'.format(i, np.mean(g_loss), np.mean(context_loss)))
+                print('Iteration {}: loss {}, context {}, g loss {}'.format(i, np.mean(loss), np.mean(context_loss), np.mean(g_loss)))
 
         return imout
 
-    @staticmethod
-    def loadpb(filename, model_name='dcgan'):
-        """Loads pretrained graph from ProtoBuf file
-        Arguments:
-            filename - path to ProtoBuf graph definition
-            model_name - prefix to assign to loaded graph node names
-        Returns:
-            graph, graph_def - as per Tensorflow definitions
-        """
-        with tf.gfile.GFile(filename, 'rb') as f:
-            graph_def = tf.GraphDef()
-            graph_def.ParseFromString(f.read())
-
-        with tf.Graph().as_default() as graph:
-            tf.import_graph_def(graph_def,
-                                input_map=None,
-                                return_elements=None,
-                                op_dict=None,
-                                producer_op_list=None,
-                                name=model_name)
-
-        return graph, graph_def
-    
-    
     def restore_graph():
         with tf.Session() as sess:
             loader = tf.train.import_meta_graph('../CelebA/checkpoints/DCGAN.ckpt.meta')
@@ -376,10 +359,9 @@ class ModelInpaint():
         assert(len(mask.shape)==2)
         return np.repeat(mask[:,:,np.newaxis], 3, axis=2)
 
+
+
 def gen_mask(maskType):
-    
-    
-#     image_shape = [args.imgSize, args.imgSize]
     image_shape = [64, 64]
     if maskType == 'random':
         fraction_masked = 0.2
@@ -395,10 +377,8 @@ def gen_mask(maskType):
         mask[l:u, l:u] = 0.0
     elif maskType == 'left':
         mask = np.ones(image_shape)
-        c = args.imgSize // 2
+        c = image_shape[0] // 2
         mask[:, :c] = 0.0
-#     elif maskType == 'file':
-#         mask = loadmask(args.maskfile, args.maskthresh)
     else:
         assert(False)
     return mask
@@ -426,4 +406,4 @@ def saveimages(outimages, outdir, prefix='samples'):
     for i in range(numimages):
         filename = '{}_{}.png'.format(prefix, i)
         filename = os.path.join(outdir, filename)
-        scipy.misc.imsave(filename, outimages[i, :, :, :])
+        scipy.misc.imsave(filename, ((outimages[i, :, :, :] + 1)* 127.5))
