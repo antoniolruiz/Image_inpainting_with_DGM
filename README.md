@@ -36,18 +36,18 @@ Download the entire zip folder of our repo and run the jupyter notebooks.
 Google Cloud Bucket:
 https://console.cloud.google.com/storage/browser/inpainting-final-project 
 
-/inpainting-final-project/images/CelebA/img_align_celeba
-/inpainting-final-project/images/Cars/cars_test/cars_test
-/inpainting-final-project/images/Cars/cars_train
-/inpainting-final-project/images/SVHN
+`/inpainting-final-project/images/CelebA/img_align_celeba`
+`/inpainting-final-project/images/Cars/cars_test/cars_test`
+`/inpainting-final-project/images/Cars/cars_train`
+`/inpainting-final-project/images/SVHN`
 
 Guide to access Cloud Bucket using Python
 
 Prerequisite: 
-1. pip install google-cloud-storage
+1. ```pip install google-cloud-storage```
 2. Follow the doc to Create service account key and add it to the bucket permission members
 https://cloud.google.com/storage/docs/reference/libraries#client-libraries-install-python
-3. Run export GOOGLE_APPLICATION_CREDENTIALS="path_to_your_key_json_file" in the shell; it only exists 
+3. Run export `GOOGLE_APPLICATION_CREDENTIALS="path_to_your_key_json_file"` in the shell; it only exists 
 
 
 ## Original Data Location 
