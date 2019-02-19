@@ -4,8 +4,6 @@ Final project for the course of Deep Learning at Columbia University based on Se
 Semantic Image Inpainting with a Novel Twist
 Ling He, Gerardo Antonio Lopez Ruiz, and Andrea Navarrete Rivera
 
-INSERT THE TENSOR BOARD IMAGE HERE 
-
 ## Overview
 
 Implementation of DCGAN and inpainting model. 
